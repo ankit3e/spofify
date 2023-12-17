@@ -1,8 +1,9 @@
-<!-- Updated UI layout with PlayerView -->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
     android:padding="16dp">
 
     <Button
@@ -13,15 +14,20 @@
 
     <ListView
         android:id="@+id/listView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
         android:layout_weight="1"
         tools:listitem="@android:layout/simple_list_item_1" />
 
-    <com.google.android.exoplayer2.ui.PlayerView
+<!--    <com.google.android.exoplayer2.ui.PlayerView-->
+<!--        android:id="@+id/playerView"-->
+<!--        android:layout_below="@+id/listView"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content" />-->
+    <com.google.android.exoplayer2.ui.StyledPlayerView
         android:id="@+id/playerView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/btnListSongs"
-        android:layout_marginTop="16dp"/>
-</RelativeLayout>
+        android:layout_width="wrap_content"
+        android:layout_height="300dp"
+        app:show_buffering="when_playing"
+        app:show_shuffle_button="true"/>
+</LinearLayout>

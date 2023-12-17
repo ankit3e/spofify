@@ -1,5 +1,6 @@
 package com.opnkit.spofify;
 
+import android.media.browse.MediaBrowser;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -11,12 +12,15 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
+import com.google.android.exoplayer2.extractor.Extractor;
+import com.google.android.exoplayer2.extractor.mp4.Mp4Extractor;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.ui.PlayerView;
+import com.google.android.exoplayer2.ui.StyledPlayerView;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DataSpec;
 import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
@@ -27,6 +31,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 
 import okhttp3.ResponseBody;
 import retrofit2.Call;
@@ -44,8 +49,11 @@ public class MainActivity extends AppCompatActivity {
 
     private ApiInterface apiInterface;
     private SimpleExoPlayer player;
-    private PlayerView playerView;
+    private StyledPlayerView playerView;
     private final String TAG = "Spofify";
+    private String BASE_URL = "http://192.168.1.7:5000/";
+    private byte[] data; // Add this field to your class
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize Retrofit
         Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("http://192.168.1.7:5000/")
+                .baseUrl(BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
@@ -76,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
                     // Populate the list view with the song list
                     Log.d(TAG,"Successful query listSongs");
                     List<String> songs = response.body();
+                    Log.d(TAG, "Size of song list" + songs.get(0));
                     ArrayAdapter<String> adapter = new ArrayAdapter<>(MainActivity.this,
                             android.R.layout.simple_list_item_1, songs);
 
@@ -114,7 +123,8 @@ public class MainActivity extends AppCompatActivity {
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     // Start audio playback
-                    startAudioPlayback(response.body().byteStream());
+                    Log.d(TAG, "Response stream size" + songName);
+                    startAudioPlayback(BASE_URL + "songs/" + songName);
                 } else {
                     // Handle unsuccessful response
                     Toast.makeText(MainActivity.this, "Failed to retrieve the audio file", Toast.LENGTH_SHORT).show();
@@ -129,66 +139,28 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    private void startAudioPlayback(InputStream inputStream) {
+    private void startAudioPlayback(String audioUrl) {
         // Create a new ExoPlayer instance
         player = new SimpleExoPlayer.Builder(this).build();
 
         // Set up the player view
+        playerView = findViewById(R.id.playerView);
         playerView.setPlayer(player);
 
-        // Create a custom DataSource to stream from InputStream
-        DataSource.Factory streamDataSourceFactory = () -> new DataSource() {
-            private InputStream inputStream;
+        // Create a data source factory
+        DefaultDataSourceFactory dataSourceFactory = new DefaultDataSourceFactory(
+                this,
+                Util.getUserAgent(this, "YourAppName")
+        );
 
-            @Override
-            public void addTransferListener(TransferListener transferListener) {
-            }
+        // Create a media source
+        ProgressiveMediaSource mediaSource = new ProgressiveMediaSource.Factory(dataSourceFactory)
+                .createMediaSource(MediaItem.fromUri(Uri.parse(audioUrl)));
 
-            @Override
-            public long open(DataSpec dataSpec) throws IOException {
-                // Ensure data is properly initialized
-                byte[] data = new byte[(int) dataSpec.length];
-
-                // Read data from the InputStream
-                int bytesRead = inputStream.read(data, 0, data.length);
-
-                // Check if the end of the stream is reached
-                if (bytesRead == -1) {
-                    return C.RESULT_END_OF_INPUT;
-                }
-
-                // Process the read data as needed
-
-                return bytesRead;
-            }
-
-            @Nullable
-            @Override
-            public Uri getUri() {
-                return null;
-            }
-
-            @Override
-            public int read(byte[] buffer, int offset, int readLength) throws IOException {
-                return inputStream.read(buffer, offset, readLength);
-            }
-
-            @Override
-            public void close() throws IOException {
-                if (inputStream != null) {
-                    inputStream.close();
-                }
-            }
-        };
-
-        MediaSource audioSource = new ProgressiveMediaSource.Factory(streamDataSourceFactory)
-                .createMediaSource(MediaItem.fromUri(Uri.parse("")));
-
-        // Set the media source for audio playback
-        player.prepare(audioSource);
-        player.setPlayWhenReady(true);
+        // Prepare the player with the media source
+        player.setPlayWhenReady(true); // Auto-play
+        player.prepare(mediaSource);
     }
-
     // Release the player when it's no longer needed
     private void releasePlayer() {
         if (player != null) {
